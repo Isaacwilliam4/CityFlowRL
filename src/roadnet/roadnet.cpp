@@ -42,6 +42,7 @@ namespace CityFlow {
     bool RoadNet::loadFromJson(std::string jsonFileName) {
         rapidjson::Document document;
         if (!readJsonFromFile(jsonFileName, document)) {
+            std::cerr << jsonFileName << std::endl;
             std::cerr << "cannot open roadnet file" << std::endl;
             return false;
         }

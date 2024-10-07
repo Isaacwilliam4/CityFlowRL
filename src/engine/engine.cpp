@@ -10,15 +10,25 @@
 #include <ctime>
 namespace CityFlow {
 
-    Engine::Engine(const std::string &configFile, int threadNum) : threadNum(threadNum), startBarrier(threadNum + 1),
-                                                                   endBarrier(threadNum + 1) {
+    Engine::Engine(const std::string &configFile, const std::string &roadtype, int threadNum) 
+        : threadNum(threadNum), startBarrier(threadNum + 1), endBarrier(threadNum + 1) {
+
+        if (roadtype.empty()) {
+            throw std::invalid_argument("roadtype cannot be empty");
+        }
+        
+        if (!(roadtype == "graph" || roadtype == "grid")) {
+            throw std::invalid_argument("roadtype must be graph or grid");
+        }
+
         for (int i = 0; i < threadNum; i++) {
             threadVehiclePool.emplace_back();
             threadRoadPool.emplace_back();
             threadIntersectionPool.emplace_back();
             threadDrivablePool.emplace_back();
         }
-        bool success = loadConfig(configFile);
+        
+        bool success = loadConfig(configFile, roadtype);
         if (!success) {
             std::cerr << "load config failed!" << std::endl;
         }
@@ -30,11 +40,10 @@ namespace CityFlow {
                                     std::ref(threadIntersectionPool[i]),
                                     std::ref(threadDrivablePool[i]));
         }
-
     }
 
 
-    bool Engine::loadConfig(const std::string &configFile) {
+    bool Engine::loadConfig(const std::string &configFile, const std::string &roadtype) {
         rapidjson::Document document;
         if (!readJsonFromFile(configFile, document)) {
             std::cerr << "cannot open config file!" << std::endl;
@@ -56,11 +65,21 @@ namespace CityFlow {
             dir = getJsonMember<const char*>("dir", document);
             std::string roadnetFile = getJsonMember<const char*>("roadnetFile", document);
             std::string flowFile = getJsonMember<const char*>("flowFile", document);
-
-            if (!loadRoadNet(dir + roadnetFile)) {
-                std::cerr << "loading roadnet file error!" << std::endl;
-                return false;
+            
+            if (roadtype == "grid"){
+                if (!loadRoadNet(dir + roadnetFile)) {
+                    std::cerr << "loading roadnet file error!" << std::endl;
+                    return false;
+                }
             }
+
+            else {
+                if (!loadRoadGraph(dir + roadnetFile)) {
+                    std::cerr << "loading roadgraph file error!" << std::endl;
+                    return false;
+                }
+            }
+
 
             if (!loadFlow(dir + flowFile)) {
                 std::cerr << "loading flow file error!" << std::endl;
@@ -84,6 +103,26 @@ namespace CityFlow {
     }
 
     bool Engine::loadRoadNet(const std::string &jsonFile) {
+        bool ans = roadnet.loadFromJson(jsonFile);
+        int cnt = 0;
+        for (Road &road : roadnet.getRoads()) {
+            threadRoadPool[cnt].push_back(&road);
+            cnt = (cnt + 1) % threadNum;
+        }
+        for (Intersection &intersection : roadnet.getIntersections()) {
+            threadIntersectionPool[cnt].push_back(&intersection);
+            cnt = (cnt + 1) % threadNum;
+        }
+        for (Drivable *drivable : roadnet.getDrivables()) {
+            threadDrivablePool[cnt].push_back(drivable);
+            cnt = (cnt + 1) % threadNum;
+        }
+        jsonRoot.SetObject();
+        jsonRoot.AddMember("static", roadnet.convertToJson(jsonRoot.GetAllocator()), jsonRoot.GetAllocator());
+        return ans;
+    }
+
+    bool Engine::loadRoadGraph(const std::string &jsonFile) {
         bool ans = roadnet.loadFromJson(jsonFile);
         int cnt = 0;
         for (Road &road : roadnet.getRoads()) {

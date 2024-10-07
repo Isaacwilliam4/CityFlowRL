@@ -103,6 +103,8 @@ namespace CityFlow {
 
         bool loadRoadNet(const std::string &jsonFile);
 
+        bool loadRoadGraph(const std::string &jsonFile);
+
         bool loadFlow(const std::string &jsonFilename);
 
         std::vector<const Vehicle *> getRunningVehicles(bool includeWaiting=false) const;
@@ -114,13 +116,13 @@ namespace CityFlow {
     public:
         std::mt19937 rnd;
 
-        Engine(const std::string &configFile, int threadNum);
+        Engine(const std::string &configFile, const std::string &roadtype, int threadNum);
 
         double getInterval() const { return interval; }
 
         bool hasLaneChange() const { return laneChange; }
 
-        bool loadConfig(const std::string &configFile);
+        bool loadConfig(const std::string &configFile, const std::string &roadtype);
 
         void notifyCross();
 
