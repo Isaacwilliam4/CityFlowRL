@@ -3,6 +3,7 @@
 
 #include "flow/flow.h"
 #include "roadnet/roadnet.h"
+#include "roadgraph/roadgraph.h"
 #include "engine/archive.h"
 #include "utility/barrier.h"
 
@@ -30,6 +31,7 @@ namespace CityFlow {
         std::vector<std::vector<Drivable *>> threadDrivablePool;
         std::vector<Flow> flows;
         RoadNet roadnet;
+        RoadGraph roadgraph;
         int threadNum;
         double interval;
         bool saveReplay;

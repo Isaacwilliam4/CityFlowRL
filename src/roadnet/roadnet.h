@@ -64,6 +64,8 @@ namespace CityFlow {
     class Intersection {
         friend class RoadNet;
 
+        friend class RoadGraph;
+
         friend class RoadLink;
 
         friend class Road;
@@ -115,6 +117,8 @@ namespace CityFlow {
 
     class Cross {
         friend class RoadNet;
+
+        friend class RoadGraph;
 
         friend class Intersection;
 
@@ -172,6 +176,8 @@ namespace CityFlow {
 
     class Road {
         friend class RoadNet;
+
+        friend class RoadGraph;
 
         friend class Lane;
 
@@ -232,6 +238,8 @@ namespace CityFlow {
 
     class Drivable {
         friend class RoadNet;
+
+        friend class RoadGraph;
         friend class Archive;
     public:
         enum DrivableType {
@@ -293,6 +301,8 @@ namespace CityFlow {
     class Lane : public Drivable {
 
         friend class RoadNet;
+
+        friend class RoadGraph;
         friend class Road;
         friend class Archive;
 
@@ -405,6 +415,8 @@ namespace CityFlow {
     class RoadLink {
         friend class RoadNet;
 
+        friend class RoadGraph;
+
         friend class LaneLink;
 
     private:
@@ -441,6 +453,8 @@ namespace CityFlow {
     class LaneLink : public Drivable {
 
         friend class RoadNet;
+
+        friend class RoadGraph;
 
         friend class Intersection;
 

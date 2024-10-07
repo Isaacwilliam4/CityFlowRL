@@ -1,4 +1,4 @@
-#include "roadnet/roadnet.h"
+#include "roadgraph/roadgraph.h"
 #include "utility/config.h"
 #include "vehicle/vehicle.h"
 
@@ -35,11 +35,11 @@ namespace CityFlow {
         return length;
     }
 
-    Point RoadNet::getPoint(const Point &p1, const Point &p2, double a) {
+    Point RoadGraph::getPoint(const Point &p1, const Point &p2, double a) {
         return Point((p2.x - p1.x) * a + p1.x, (p2.y - p1.y) * a + p1.y);
     }
 
-    bool RoadNet::loadFromJson(std::string jsonFileName) {
+    bool RoadGraph::loadFromJson(std::string jsonFileName) {
         rapidjson::Document document;
         if (!readJsonFromFile(jsonFileName, document)) {
             std::cerr << jsonFileName << std::endl;
@@ -325,7 +325,7 @@ namespace CityFlow {
         return true;
     }
 
-    rapidjson::Value RoadNet::convertToJson(rapidjson::Document::AllocatorType &allocator) {
+    rapidjson::Value RoadGraph::convertToJson(rapidjson::Document::AllocatorType &allocator) {
         rapidjson::Value jsonRoot(rapidjson::kObjectType);
         // write nodes
         rapidjson::Value jsonNodes(rapidjson::kArrayType);
@@ -676,7 +676,7 @@ FOUND:;
         return yield == -1;
     }
 
-    void RoadNet::reset() {
+    void RoadGraph::reset() {
         for (auto &road : roads) road.reset();
         for (auto &intersection : intersections) intersection.reset();
     }

@@ -13,6 +13,7 @@ namespace CityFlow {
     class TrafficLight;
 
     class LightPhase {
+        friend class RoadGraph;
         friend class RoadNet;
         friend class RoadLink;
         friend class TrafficLight;
@@ -23,6 +24,7 @@ namespace CityFlow {
     };
 
     class TrafficLight {
+        friend class RoadGraph;
         friend class RoadNet;
         friend class Archive;
     private:
