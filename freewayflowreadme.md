@@ -27,6 +27,17 @@ for vscode and used that
 
 # Notes
 
+The cityflow engine has been updated to include three arguments now, in `mysim/run_sim.py`
+you can see it initialized as
+
+```
+eng = cityflow.Engine('/path/to/config.json', roadtype="grid", thread_num=1)
+```
+
+The second parameter `roadtype`, was the one added. It can be either `grid` or
+`graph`. If `grid` then the default program that came as part of the city flow
+package will run. If `graph` then the newly added code will run.
+
 When updating the c++ code in `src/` make sure to rebuild the code, the 
 setup.py file can do this, just run
 
