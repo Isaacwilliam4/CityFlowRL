@@ -712,10 +712,10 @@ FOUND:;
         std::vector<Point> points;
         points.push_back(getPosition());
         for (auto road : getRoads()){
-            Vector roadDirect = road->getEndIntersection().getPosition() - road->getStartIntersection().getPosition();
+            Vector roadDirect = road->getEndNode().getPosition() - road->getStartIntersection().getPosition();
             roadDirect = roadDirect.unit();
             Vector pDirect = roadDirect.normal();
-            if (&road->getStartIntersection() == this) {
+            if (&road->getStartNode() == this) {
                 roadDirect = -roadDirect;
             }
             /*                          <deltaWidth>

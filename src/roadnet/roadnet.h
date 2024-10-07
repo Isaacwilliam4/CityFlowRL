@@ -251,6 +251,11 @@ namespace CityFlow {
 
         const Intersection &getEndIntersection() const { return *(this->endIntersection); }
 
+        const Node &getStartNode() const { return *(this->startNode); }
+
+        const Node &getEndNode() const { return *(this->endNode); }
+
+
         const std::vector<Lane> &getLanes() const { return lanes; }
 
         std::vector<Lane> &getLanes() { return lanes; }
