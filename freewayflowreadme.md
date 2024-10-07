@@ -2,7 +2,7 @@
 
 1. Create a conda env
 ```bash
-conda create -name cityflow python=3.8
+conda create -name cityflowenv python=3.8
 ```
 2. Run the following to build the c libraries 
 ```bash
@@ -40,6 +40,14 @@ need to compile the code with
 ```bash
 python setup.py build_ext --inplace --debug
 ```
+
+And immedietly after, run
+
+```
+pip install .
+```
+in the root directory, this updates the references cityflow library to use your
+new code.
 
 The following launch.json is helpful for debugging, after installing the 
 `python c++ debugger` extension copy the following to your launch.json file
