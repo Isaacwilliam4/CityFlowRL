@@ -1,6 +1,7 @@
 #ifndef CITYFLOW_ROADNET_H
 #define CITYFLOW_ROADNET_H
 
+// #include "roadgraph/roadgraph.h"
 #include "roadnet/trafficlight.h"
 #include "utility/utility.h"
 
@@ -23,6 +24,51 @@ namespace CityFlow {
     class Vehicle;
 
     class Cross;
+
+    class Node;
+
+    class Node {
+        friend class RoadGraph;
+
+        friend class RoadLink;
+
+        friend class Road;
+
+    private:
+        std::string id;
+        double width = 0.0;
+        Point point;
+        std::vector<Road *> roads;
+        std::vector<RoadLink> roadLinks;
+        std::vector<Cross> crosses;
+        std::vector<LaneLink *> laneLinks;
+
+        void initCrosses();
+
+    public:
+        std::string getId() const { return this->id; }
+
+        const std::vector<Road *> &getRoads() const { return this->roads; }
+
+        std::vector<Road *> &getRoads() { return this->roads; }
+
+        const std::vector<RoadLink> &getRoadLinks() const { return this->roadLinks; }
+
+        std::vector<RoadLink> &getRoadLinks() { return this->roadLinks; }
+
+        std::vector<Cross> &getCrosses() { return crosses; }
+
+        const std::vector<LaneLink *> &getLaneLinks();
+
+        void reset();
+
+        std::vector<Point> getOutline();
+
+        bool isImplicitNode();
+
+        const Point &getPosition() const { return point; }
+    };
+
 
     class Segment {
         friend Lane;
@@ -122,6 +168,8 @@ namespace CityFlow {
 
         friend class Intersection;
 
+        friend class Node;
+
     private:
         LaneLink *laneLinks[2];
         Vehicle *notifyVehicles[2];
@@ -185,6 +233,8 @@ namespace CityFlow {
         std::string id;
         Intersection *startIntersection = nullptr;
         Intersection *endIntersection = nullptr;
+        Node *startNode = nullptr;
+        Node *endNode = nullptr;
         std::vector<Lane> lanes;
         std::vector<Point> points;
 
@@ -421,6 +471,7 @@ namespace CityFlow {
 
     private:
         Intersection *intersection = nullptr;
+        Node *node = nullptr;
         Road *startRoad = nullptr;
         Road *endRoad = nullptr;
         RoadLinkType type;
@@ -457,6 +508,8 @@ namespace CityFlow {
         friend class RoadGraph;
 
         friend class Intersection;
+
+        friend class Node;
 
     private:
         RoadLink *roadLink = nullptr;

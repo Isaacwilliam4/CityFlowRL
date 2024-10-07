@@ -6,7 +6,7 @@ conda create -name cityflowenv python=3.8
 ```
 2. Run the following to build the c libraries 
 ```bash
-python setup.py build_ext --inplace --debug
+python3 setup.py build_ext --inplace --debug
 ```
 3. Install the city flow python package, in the root folder run
 ```bash
@@ -31,14 +31,14 @@ When updating the c++ code in `src/` make sure to rebuild the code, the
 setup.py file can do this, just run
 
 ```bash
-python setup.py build_ext --inplace
+python3 setup.py build_ext --inplace
 ```
 
 if you want to debug the c++ code with the python c++ debugger in vscode you 
 need to compile the code with 
 
 ```bash
-python setup.py build_ext --inplace --debug
+python3 setup.py build_ext --inplace --debug
 ```
 
 And immedietly after, run

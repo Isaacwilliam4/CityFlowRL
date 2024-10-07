@@ -2,6 +2,7 @@
 #define CITYFLOW_ROADGRAPH_H
 
 #include "roadnet/trafficlight.h"
+#include "roadnet/roadnet.h"
 #include "utility/utility.h"
 
 #include <list>
@@ -12,12 +13,14 @@
 namespace CityFlow {
     class RoadGraph;
 
+
+    
     class RoadGraph {
     private:
         std::vector<Road> roads;
-        std::vector<Intersection> intersections;
+        std::vector<Node> nodes;
         std::map<std::string, Road *> roadMap;
-        std::map<std::string, Intersection *> interMap;
+        std::map<std::string, Node *> interMap;
         std::map<std::string, Drivable *> drivableMap;
 
         std::vector<Lane *> lanes;
@@ -34,15 +37,15 @@ namespace CityFlow {
 
         std::vector<Road> &getRoads() { return this->roads; }
 
-        const std::vector<Intersection> &getIntersections() const { return this->intersections; }
+        const std::vector<Node> &getNodes() const { return this->nodes; }
 
-        std::vector<Intersection> &getIntersections() { return this->intersections; }
+        std::vector<Node> &getNodes() { return this->nodes; }
 
         Road *getRoadById(const std::string &id) const {
             return roadMap.count(id) > 0 ? roadMap.at(id) : nullptr;
         }
 
-        Intersection *getIntersectionById(const std::string &id) const {
+        Node *getNodeById(const std::string &id) const {
             return interMap.count(id) > 0 ? interMap.at(id) : nullptr;
         }
 
