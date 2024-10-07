@@ -20,7 +20,7 @@ namespace CityFlow {
         std::vector<Road> roads;
         std::vector<Node> nodes;
         std::map<std::string, Road *> roadMap;
-        std::map<std::string, Node *> interMap;
+        std::map<std::string, Node *> nodeMap;
         std::map<std::string, Drivable *> drivableMap;
 
         std::vector<Lane *> lanes;
@@ -46,7 +46,7 @@ namespace CityFlow {
         }
 
         Node *getNodeById(const std::string &id) const {
-            return interMap.count(id) > 0 ? interMap.at(id) : nullptr;
+            return nodeMap.count(id) > 0 ? nodeMap.at(id) : nullptr;
         }
 
         Drivable *getDrivableById(const std::string &id) const {

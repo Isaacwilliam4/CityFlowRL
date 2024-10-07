@@ -418,6 +418,14 @@ namespace CityFlow {
             return belongRoad->endIntersection;
         }
 
+        Node *getStartNode() const {
+            return belongRoad->startNode;
+        }
+
+        Node *getEndNode() const {
+            return belongRoad->endNode;
+        }
+
         std::vector<LaneLink *> getLaneLinksToRoad(const Road *road) const;
 
         void reset();

@@ -51,12 +51,12 @@ namespace CityFlow {
         if (!document.IsObject())
             throw JsonTypeError("roadnet config file", "object");
         try {
-            const rapidjson::Value &interValues = getJsonMemberArray("nodes", document);
+            const rapidjson::Value &nodeValues = getJsonMemberArray("nodes", document);
             const rapidjson::Value &roadValues = getJsonMemberArray("roads", document);
 
             //  build mapping
             roads.resize(roadValues.Size());
-            nodes.resize(interValues.Size());
+            nodes.resize(nodeValues.Size());
             for (rapidjson::SizeType i = 0; i < roadValues.Size(); i++) {
                 path.emplace_back("road[" + std::to_string(i) + "]");
                 std::string id = getJsonMember<const char*>("id", roadValues[i]);
@@ -66,10 +66,10 @@ namespace CityFlow {
             }
             assert(path.empty());
 
-            for (rapidjson::SizeType i = 0; i < interValues.Size(); i++) {
-                path.emplace_back("intersection[" + std::to_string(i) + "]");
-                std::string id = getJsonMember<const char*>("id", interValues[i]);;
-                interMap[id] = &nodes[i];
+            for (rapidjson::SizeType i = 0; i < nodeValues.Size(); i++) {
+                path.emplace_back("node[" + std::to_string(i) + "]");
+                std::string id = getJsonMember<const char*>("id", nodeValues[i]);;
+                nodeMap[id] = &nodes[i];
                 nodes[i].id = id;
                 path.pop_back();
             }
@@ -84,8 +84,8 @@ namespace CityFlow {
                 if (!curRoadValue.IsObject()) {
                     throw JsonTypeError("road[" + std::to_string(i) + "]", "object");
                 }
-                roads[i].startNode = interMap[getJsonMember<const char*>("startIntersection", curRoadValue)];
-                roads[i].endNode = interMap[getJsonMember<const char*>("endIntersection", curRoadValue)];
+                roads[i].startNode = nodeMap[getJsonMember<const char*>("startIntersection", curRoadValue)];
+                roads[i].endNode = nodeMap[getJsonMember<const char*>("endIntersection", curRoadValue)];
                 
                 // Check
                 if (!roads[i].startIntersection) throw JsonFormatError("startIntersection does not exist.");
@@ -134,9 +134,9 @@ namespace CityFlow {
                                                            {"turn_right",  turn_right},
                                                            {"go_straight", go_straight}};
             path.emplace_back("nodes");
-            for (rapidjson::SizeType i = 0; i < interValues.Size(); i++) {
+            for (rapidjson::SizeType i = 0; i < nodeValues.Size(); i++) {
                 path.emplace_back(nodes[i].getId());
-                const auto &curInterValue = interValues[i];
+                const auto &curInterValue = nodeValues[i];
                 if (!curInterValue.IsObject()) {
                     throw JsonTypeError("intersection", "object");
                     return false;
@@ -204,24 +204,24 @@ namespace CityFlow {
                             }
                         else {
                             Point start = Point(startLane->getPointByDistance(
-                                    startLane->getLength() - startLane->getEndIntersection()->width));
+                                    startLane->getLength() - startLane->getEndNode()->width));
                             Point end = Point(
-                                    endLane->getPointByDistance(0.0 + endLane->getStartIntersection()->width));
+                                    endLane->getPointByDistance(0.0 + endLane->getStartNode()->width));
                             double len = (Point(end.x - start.x, end.y - start.y)).len();
                             Point startDirection = startLane->getDirectionByDistance(
-                                    startLane->getLength() - startLane->getEndIntersection()->width);
+                                    startLane->getLength() - startLane->getEndNode()->width);
                             Point endDirection = endLane->getDirectionByDistance(
-                                    0.0 + endLane->getStartIntersection()->width);
+                                    0.0 + endLane->getStartNode()->width);
                             double minGap = 5;
                             double gap1X = startDirection.x * len * 0.5;
                             double gap1Y = startDirection.y * len * 0.5;
                             double gap2X = -endDirection.x * len * 0.5;
                             double gap2Y = -endDirection.y * len * 0.5;
-                            if (gap1X * gap1X + gap1Y * gap1Y < 25 && startLane->getEndIntersection()->width >= 5) {
+                            if (gap1X * gap1X + gap1Y * gap1Y < 25 && startLane->getEndNode()->width >= 5) {
                                 gap1X = minGap * startDirection.x;
                                 gap1Y = minGap * startDirection.y;
                             }
-                            if (gap2X * gap2X + gap2Y * gap2Y < 25 && endLane->getStartIntersection()->width >= 5) {
+                            if (gap2X * gap2X + gap2Y * gap2Y < 25 && endLane->getStartNode()->width >= 5) {
                                 gap2X = minGap * endDirection.x;
                                 gap2Y = minGap * endDirection.y;
                             }
