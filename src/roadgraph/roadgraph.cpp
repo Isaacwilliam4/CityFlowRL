@@ -78,18 +78,18 @@ namespace CityFlow {
             //  read roads
             path.emplace_back("roads");
             for (rapidjson::SizeType i = 0; i < roadValues.Size(); i++) {
-                //  read startIntersection, endIntersection
+                //  read startNode, endNode
                 path.emplace_back(roads[i].getId());
                 const auto &curRoadValue = roadValues[i];
                 if (!curRoadValue.IsObject()) {
                     throw JsonTypeError("road[" + std::to_string(i) + "]", "object");
                 }
-                roads[i].startNode = nodeMap[getJsonMember<const char*>("startIntersection", curRoadValue)];
-                roads[i].endNode = nodeMap[getJsonMember<const char*>("endIntersection", curRoadValue)];
+                roads[i].startNode = nodeMap[getJsonMember<const char*>("startNode", curRoadValue)];
+                roads[i].endNode = nodeMap[getJsonMember<const char*>("endNode", curRoadValue)];
                 
                 // Check
-                if (!roads[i].startIntersection) throw JsonFormatError("startIntersection does not exist.");
-                if (!roads[i].endIntersection) throw JsonFormatError("endIntersection does not exist.");
+                if (!roads[i].startNode) throw JsonFormatError("startNode does not exist.");
+                if (!roads[i].endNode) throw JsonFormatError("endNode does not exist.");
 
                 //  read lanes
                 const auto &lanesValue = getJsonMemberArray("lanes", curRoadValue);
@@ -138,7 +138,7 @@ namespace CityFlow {
                 path.emplace_back(nodes[i].getId());
                 const auto &curInterValue = nodeValues[i];
                 if (!curInterValue.IsObject()) {
-                    throw JsonTypeError("intersection", "object");
+                    throw JsonTypeError("node", "object");
                     return false;
                 }
 
@@ -264,8 +264,8 @@ namespace CityFlow {
             return false;
         }
 
-        for (auto &intersection : nodes)
-            intersection.initCrosses();
+        for (auto &node : nodes)
+            node.initCrosses();
         VehicleInfo vehicleTemplate;
 
         for (auto &road : roads)
@@ -280,8 +280,8 @@ namespace CityFlow {
             lanes.insert(lanes.end(), roadLanes.begin(), roadLanes.end());
             drivables.insert(drivables.end(), roadLanes.begin(), roadLanes.end());
         }
-        for (auto &intersection : nodes) {
-            auto &intersectionLaneLinks = intersection.getLaneLinks();
+        for (auto &node : nodes) {
+            auto &intersectionLaneLinks = node.getLaneLinks();
             laneLinks.insert(laneLinks.end(), intersectionLaneLinks.begin(), intersectionLaneLinks.end());
             drivables.insert(drivables.end(), intersectionLaneLinks.begin(), intersectionLaneLinks.end());
         }
@@ -324,15 +324,15 @@ namespace CityFlow {
             idValue.SetString(rapidjson::StringRef(roads[i].id.c_str()));
             jsonEdge.AddMember("id", idValue, allocator);
             rapidjson::Value startValue;
-            if (roads[i].startIntersection)
-                startValue.SetString(rapidjson::StringRef(roads[i].startIntersection->id.c_str()));
+            if (roads[i].startNode)
+                startValue.SetString(rapidjson::StringRef(roads[i].startNode->id.c_str()));
             else
                 startValue.SetString("null");
             jsonEdge.AddMember("from", startValue, allocator);
 
             rapidjson::Value endValue;
-            if (roads[i].endIntersection)
-                endValue.SetString(rapidjson::StringRef(roads[i].endIntersection->id.c_str()));
+            if (roads[i].endNode)
+                endValue.SetString(rapidjson::StringRef(roads[i].endNode->id.c_str()));
             else
                 endValue.SetString("null");
             jsonEdge.AddMember("to", endValue, allocator);
@@ -420,19 +420,19 @@ namespace CityFlow {
 
         assert(roadPoints.size() >= 2);
 
-        if (!startIntersection->isVirtualIntersection()) {
-            double width = startIntersection->width;
-            Point p1 = roadPoints[0];
-            Point p2 = roadPoints[1];
-            roadPoints[0] = p1 + (p2 - p1).unit() * width;
-        }
+        // if (!startNode->isVirtualIntersection()) {
+        //     double width = startNode->width;
+        //     Point p1 = roadPoints[0];
+        //     Point p2 = roadPoints[1];
+        //     roadPoints[0] = p1 + (p2 - p1).unit() * width;
+        // }
 
-        if (!endIntersection->isVirtualIntersection()) {
-            double width = endIntersection->width;
-            Point p1 = roadPoints[roadPoints.size() - 2];
-            Point p2 = roadPoints[roadPoints.size() - 1];
-            roadPoints[roadPoints.size() - 1] = p2 - (p2 - p1).unit() * width;
-        }
+        // if (!endNode->isVirtualIntersection()) {
+        //     double width = endNode->width;
+        //     Point p1 = roadPoints[roadPoints.size() - 2];
+        //     Point p2 = roadPoints[roadPoints.size() - 1];
+        //     roadPoints[roadPoints.size() - 1] = p2 - (p2 - p1).unit() * width;
+        // }
 
         for (Lane &lane : lanes) {
             double dmin = dsum;
@@ -708,7 +708,7 @@ FOUND:;
     }
 
     std::vector<Point> Node::getOutline() {
-        // Calculate the convex hull as the outline of the intersection
+        // Calculate the convex hull as the outline of the node
         std::vector<Point> points;
         points.push_back(getPosition());
         for (auto road : getRoads()){
@@ -725,7 +725,7 @@ FOUND:;
              *                   [pDirect] <- roadDirect <- Road
              *                       |
              *                       v
-             * [intersection]----[pointA *]------[pointA1 *]--------
+             * [node]----[pointA *]------[pointA1 *]--------
              */
             double roadWidth = road->getWidth();
             double deltaWidth = 0.5 * min2double(width, roadWidth);
