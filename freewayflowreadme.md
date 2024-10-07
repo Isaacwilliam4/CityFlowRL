@@ -38,7 +38,7 @@ The second parameter `roadtype`, was the one added. It can be either `grid` or
 `graph`. If `grid` then the default program that came as part of the city flow
 package will run. If `graph` then the newly added code will run.
 
-When updating the c++ code in `src/` make sure to rebuild the code, the 
+***When updating the c++ code in `src/` make sure to rebuild the code***, the 
 setup.py file can do this, just run
 
 ```bash
