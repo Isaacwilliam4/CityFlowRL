@@ -126,7 +126,7 @@ namespace CityFlow {
             assert(path.empty());
 
             for (rapidjson::SizeType i = 0; i < roadValues.Size(); i++) {
-                roads[i].initLanesPoints();
+                roads[i].initLanesPointsNodes();
             }
 
             //  read nodes
@@ -269,7 +269,7 @@ namespace CityFlow {
         VehicleInfo vehicleTemplate;
 
         for (auto &road : roads)
-            road.initLanesPoints();
+            road.initLanesPointsNodes();
 
         for (auto &road : roads) {
             road.buildSegmentationByInterval((vehicleTemplate.len + vehicleTemplate.minGap) * MAX_NUM_CARS_ON_SEGMENT);
@@ -824,6 +824,43 @@ namespace CityFlow {
         }
     }
 
+    void Road::initLanesPointsNodes() {
+        double dsum = 0.0;
+        std::vector<Point> roadPoints = this->points;
+
+        assert(roadPoints.size() >= 2);
+
+        for (Lane &lane : lanes) {
+            double dmin = dsum;
+            double dmax = dsum + lane.width;
+            lane.points.clear();
+            for (int j = 0; j < (int) roadPoints.size(); j++) {
+                // TODO: the '(dmin + dmax) / 2.0' is wrong
+                std::vector<Point> &lanePoints = lane.points;
+                if (j == 0) {
+                    Vector u = (roadPoints[1] - roadPoints[0]).unit();
+                    Vector v = -u.normal();
+                    Point startPoint = roadPoints[j] + v * ((dmin + dmax) / 2.0);
+                    lanePoints.push_back(startPoint);
+                } else if (j + 1 == (int) roadPoints.size()) {
+                    Vector u = (roadPoints[j] - roadPoints[j - 1]).unit();
+                    Vector v = -u.normal();
+                    Point endPoint = roadPoints[j] + v * ((dmin + dmax) / 2.0);
+                    lanePoints.push_back(endPoint);
+                } else {
+                    Vector u1 = (roadPoints[j + 1] - roadPoints[j]).unit();
+                    Vector u2 = (roadPoints[j] - roadPoints[j - 1]).unit();
+                    Vector u = (u1 + u2).unit();
+                    Vector v = -u.normal();
+                    Point interPoint = roadPoints[j] + v * ((dmin + dmax) / 2.0);
+                    lanePoints.push_back(interPoint);
+                }
+            }
+            lane.length = getLengthOfPoints(lane.points);
+            dsum += lane.width;
+        }
+    }
+
     const std::vector<Lane *> &Road::getLanePointers() {
         if (lanePointers.size()) return lanePointers;
         for (auto &lane : lanes) {
@@ -998,6 +1035,11 @@ FOUND:;
     void RoadNet::reset() {
         for (auto &road : roads) road.reset();
         for (auto &intersection : intersections) intersection.reset();
+    }
+
+    void RoadGraph::reset() {
+        for (auto &road : roads) road.reset();
+        for (auto &node : nodes) node.reset();
     }
 
     void Road::reset() {

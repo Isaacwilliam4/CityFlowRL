@@ -206,6 +206,8 @@ namespace CityFlow {
         std::vector<Vehicle *> planRouteBuffer;
 
         void initLanesPoints();
+        void initLanesPointsNodes();
+
 
     public:
         std::string getId() const { return id; }

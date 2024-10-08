@@ -25,6 +25,7 @@ namespace CityFlow {
             threadVehiclePool.emplace_back();
             threadRoadPool.emplace_back();
             threadIntersectionPool.emplace_back();
+            threadNodePool.emplace_back();
             threadDrivablePool.emplace_back();
         }
         
@@ -38,6 +39,7 @@ namespace CityFlow {
                                     std::ref(threadVehiclePool[i]),
                                     std::ref(threadRoadPool[i]),
                                     std::ref(threadIntersectionPool[i]),
+                                    std::ref(threadNodePool[i]),
                                     std::ref(threadDrivablePool[i]));
         }
     }
@@ -129,16 +131,16 @@ namespace CityFlow {
             threadRoadPool[cnt].push_back(&road);
             cnt = (cnt + 1) % threadNum;
         }
-        // for (Node &node : roadgraph.getIntersections()) {
-        //     threadIntersectionPool[cnt].push_back(&intersection);
-        //     cnt = (cnt + 1) % threadNum;
-        // }
+        for (Node &node : roadgraph.getNodes()) {
+            threadNodePool[cnt].push_back(&node);
+            cnt = (cnt + 1) % threadNum;
+        }
         for (Drivable *drivable : roadgraph.getDrivables()) {
             threadDrivablePool[cnt].push_back(drivable);
             cnt = (cnt + 1) % threadNum;
         }
         jsonRoot.SetObject();
-        jsonRoot.AddMember("static", roadnet.convertToJson(jsonRoot.GetAllocator()), jsonRoot.GetAllocator());
+        jsonRoot.AddMember("static", roadgraph.convertToJson(jsonRoot.GetAllocator()), jsonRoot.GetAllocator());
         return ans;
     }
 
@@ -292,6 +294,7 @@ namespace CityFlow {
     void Engine::threadController(std::set<Vehicle *> &vehicles, 
                                   std::vector<Road *> &roads,
                                   std::vector<Intersection *> &intersections,
+                                  std::vector<Node *> &nodes,
                                   std::vector<Drivable *> &drivables) {
         while (!finished) {
             threadPlanRoute(roads);

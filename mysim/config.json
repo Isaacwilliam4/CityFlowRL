@@ -2,7 +2,7 @@
 	"interval": 1.0,
 	"seed": 0,
 	"dir": "/home/isaacpeterson/research/repos/CityFlowRL/mysim/",
-	"roadnetFile": "roadnet.json", 
+	"roadnetFile": "ideal_roadnet.json", 
 	"flowFile": "flow.json", 
 	"rlTrafficLight": true,
 	"laneChange": true,

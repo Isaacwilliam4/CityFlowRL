@@ -27,6 +27,7 @@ namespace CityFlow {
         std::vector<std::set<Vehicle *>> threadVehiclePool;
         std::vector<std::vector<Road *>> threadRoadPool;
         std::vector<std::vector<Intersection *>> threadIntersectionPool;
+        std::vector<std::vector<Node *>> threadNodePool;
         std::vector<std::vector<Drivable *>> threadDrivablePool;
         std::vector<Flow> flows;
         RoadNet roadnet;
@@ -78,6 +79,7 @@ namespace CityFlow {
         void threadController(std::set<Vehicle *> &vehicles, 
                               std::vector<Road *> &roads,
                               std::vector<Intersection *> &intersections,
+                              std::vector<Node *> &nodes,
                               std::vector<Drivable *> &drivables);
 
         void threadPlanRoute(const std::vector<Road *> &roads);
