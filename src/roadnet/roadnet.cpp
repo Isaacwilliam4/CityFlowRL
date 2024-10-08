@@ -35,6 +35,325 @@ namespace CityFlow {
         return length;
     }
 
+    Point RoadGraph::getPoint(const Point &p1, const Point &p2, double a) {
+        return Point((p2.x - p1.x) * a + p1.x, (p2.y - p1.y) * a + p1.y);
+    }
+
+    bool RoadGraph::loadFromJson(std::string jsonFileName) {
+        rapidjson::Document document;
+        if (!readJsonFromFile(jsonFileName, document)) {
+            std::cerr << jsonFileName << std::endl;
+            std::cerr << "cannot open roadnet file" << std::endl;
+            return false;
+        }
+        //std::clog << root << std::endl;
+        std::list<std::string> path;
+        if (!document.IsObject())
+            throw JsonTypeError("roadnet config file", "object");
+        try {
+            const rapidjson::Value &nodeValues = getJsonMemberArray("nodes", document);
+            const rapidjson::Value &roadValues = getJsonMemberArray("roads", document);
+
+            //  build mapping
+            roads.resize(roadValues.Size());
+            nodes.resize(nodeValues.Size());
+            for (rapidjson::SizeType i = 0; i < roadValues.Size(); i++) {
+                path.emplace_back("road[" + std::to_string(i) + "]");
+                std::string id = getJsonMember<const char*>("id", roadValues[i]);
+                roadMap[id] = &roads[i];
+                roads[i].id = id;
+                path.pop_back();
+            }
+            assert(path.empty());
+
+            for (rapidjson::SizeType i = 0; i < nodeValues.Size(); i++) {
+                path.emplace_back("node[" + std::to_string(i) + "]");
+                std::string id = getJsonMember<const char*>("id", nodeValues[i]);;
+                nodeMap[id] = &nodes[i];
+                nodes[i].id = id;
+                path.pop_back();
+            }
+            assert(path.empty());
+
+            //  read roads
+            path.emplace_back("roads");
+            for (rapidjson::SizeType i = 0; i < roadValues.Size(); i++) {
+                //  read startNode, endNode
+                path.emplace_back(roads[i].getId());
+                const auto &curRoadValue = roadValues[i];
+                if (!curRoadValue.IsObject()) {
+                    throw JsonTypeError("road[" + std::to_string(i) + "]", "object");
+                }
+                roads[i].startNode = nodeMap[getJsonMember<const char*>("startNode", curRoadValue)];
+                roads[i].endNode = nodeMap[getJsonMember<const char*>("endNode", curRoadValue)];
+                
+                // Check
+                if (!roads[i].startNode) throw JsonFormatError("startNode does not exist.");
+                if (!roads[i].endNode) throw JsonFormatError("endNode does not exist.");
+
+                //  read lanes
+                const auto &lanesValue = getJsonMemberArray("lanes", curRoadValue);
+                int laneIndex = 0;
+                for (const auto &laneValue : lanesValue.GetArray()) {
+                    path.emplace_back("lane[" + std::to_string(laneIndex) + "]");
+                    if (!laneValue.IsObject())
+                        throw JsonTypeError("lane", "object");
+                    double width = getJsonMember<double>("width", laneValue);
+                    double maxSpeed = getJsonMember<double>("maxSpeed", laneValue);
+                    roads[i].lanes.emplace_back(width, maxSpeed, laneIndex, &roads[i]);
+                    laneIndex++;
+                    path.pop_back();
+                }
+
+                for (auto &lane : roads[i].lanes) {
+                    drivableMap[lane.getId()] = &lane;
+                }
+
+                //  read points
+                const auto &pointsValue = getJsonMemberArray("points", curRoadValue);
+                for (const auto &pointValue : pointsValue.GetArray()) {
+                    path.emplace_back("point[" + std::to_string(roads[i].points.size()) + "]");
+                    if (!pointValue.IsObject())
+                        throw JsonTypeError("point of road", "object");
+                    double x = getJsonMember<double>("x", pointValue);
+                    double y = getJsonMember<double>("y", pointValue);
+                    roads[i].points.emplace_back(x, y);
+                    path.pop_back();
+                }
+                path.pop_back();
+            }
+            path.pop_back();
+            assert(path.empty());
+
+            for (rapidjson::SizeType i = 0; i < roadValues.Size(); i++) {
+                roads[i].initLanesPoints();
+            }
+
+            //  read nodes
+            std::map<std::string, RoadLinkType> typeMap = {{"turn_left",   turn_left},
+                                                           {"turn_right",  turn_right},
+                                                           {"go_straight", go_straight}};
+            path.emplace_back("nodes");
+            for (rapidjson::SizeType i = 0; i < nodeValues.Size(); i++) {
+                path.emplace_back(nodes[i].getId());
+                const auto &curInterValue = nodeValues[i];
+                if (!curInterValue.IsObject()) {
+                    throw JsonTypeError("node", "object");
+                    return false;
+                }
+
+                //  read point
+                const auto &pointValue = getJsonMemberObject("point", curInterValue);
+                double x = getJsonMember<double>("x", pointValue);
+                double y = getJsonMember<double>("y", pointValue);
+                nodes[i].point = Point(x, y);
+
+                //  read roads
+                const auto &roadsValue = getJsonMemberArray("roads", curInterValue);
+                for (auto &roadNameValue : roadsValue.GetArray()) {
+                    path.emplace_back("roads[" + std::to_string(nodes[i].roads.size()) + "]");
+                    std::string roadName = roadNameValue.GetString();
+                    if (!roadMap.count(roadName))
+                        throw JsonFormatError("No such road: " + roadName);
+                    nodes[i].roads.push_back(roadMap[roadName]);
+                    path.pop_back();
+                }
+
+                //  read width
+                nodes[i].width = getJsonMember<double>("width", curInterValue);
+
+                //  read laneLinks
+                const auto &roadLinksValue = getJsonMemberArray("roadLinks", curInterValue);
+                nodes[i].roadLinks.resize(roadLinksValue.Size());
+                int roadLinkIndex = 0;
+                for (const auto &roadLinkValue : roadLinksValue.GetArray()) {
+                    path.emplace_back("roadLinks[" + std::to_string(roadLinkIndex) + "]");
+                    if (!roadLinkValue.IsObject())
+                        throw JsonTypeError("roadLink", "object");
+                    RoadLink &roadLink = nodes[i].roadLinks[roadLinkIndex];
+                    roadLink.index = roadLinkIndex++;
+                    roadLink.type = typeMap[getJsonMember<const char*>("type", roadLinkValue)];
+                    roadLink.startRoad = roadMap[getJsonMember<const char*>("startRoad", roadLinkValue)];
+                    roadLink.endRoad = roadMap[getJsonMember<const char*>("endRoad", roadLinkValue)];
+
+                    const auto &laneLinksValue = getJsonMemberArray("laneLinks", roadLinkValue);
+                    roadLink.laneLinks.resize(laneLinksValue.Size());
+                    int laneLinkIndex = 0;
+                    for (const auto &laneLinkValue : laneLinksValue.GetArray()) {
+                        path.emplace_back("laneLinks[" + std::to_string(laneLinkIndex) + "]");
+                        if (!laneLinkValue.IsObject())
+                            throw JsonTypeError("laneLink", "object");
+                        LaneLink &laneLink = roadLink.laneLinks[laneLinkIndex++];
+
+                        int startLaneIndex = getJsonMember<int>("startLaneIndex", laneLinkValue);
+                        int endLaneIndex = getJsonMember<int>("endLaneIndex", laneLinkValue);
+                        if (startLaneIndex >= static_cast<int>(roadLink.startRoad->lanes.size()) || startLaneIndex < 0)
+                            throw JsonFormatError("startLaneIndex out of range");
+                        if (endLaneIndex >= static_cast<int>(roadLink.endRoad->lanes.size()) || endLaneIndex < 0)
+                            throw JsonFormatError("startLaneIndex out of range");
+                        Lane *startLane = &roadLink.startRoad->lanes[startLaneIndex];
+                        Lane *endLane = &roadLink.endRoad->lanes[endLaneIndex];
+
+                        auto iter = laneLinkValue.FindMember("points");
+                        if (iter != laneLinkValue.MemberEnd() && !iter->value.IsArray())
+                            throw JsonTypeError("points in laneLink", "array");
+                        if (iter != laneLinkValue.MemberEnd() && !iter->value.Empty())
+                            for (const auto &pValue : iter->value.GetArray()) {
+                                laneLink.points.emplace_back(getJsonMember<double>("x", pValue),
+                                                             getJsonMember<double>("y", pValue));
+                            }
+                        else {
+                            Point start = Point(startLane->getPointByDistance(
+                                    startLane->getLength() - startLane->getEndNode()->width));
+                            Point end = Point(
+                                    endLane->getPointByDistance(0.0 + endLane->getStartNode()->width));
+                            double len = (Point(end.x - start.x, end.y - start.y)).len();
+                            Point startDirection = startLane->getDirectionByDistance(
+                                    startLane->getLength() - startLane->getEndNode()->width);
+                            Point endDirection = endLane->getDirectionByDistance(
+                                    0.0 + endLane->getStartNode()->width);
+                            double minGap = 5;
+                            double gap1X = startDirection.x * len * 0.5;
+                            double gap1Y = startDirection.y * len * 0.5;
+                            double gap2X = -endDirection.x * len * 0.5;
+                            double gap2Y = -endDirection.y * len * 0.5;
+                            if (gap1X * gap1X + gap1Y * gap1Y < 25 && startLane->getEndNode()->width >= 5) {
+                                gap1X = minGap * startDirection.x;
+                                gap1Y = minGap * startDirection.y;
+                            }
+                            if (gap2X * gap2X + gap2Y * gap2Y < 25 && endLane->getStartNode()->width >= 5) {
+                                gap2X = minGap * endDirection.x;
+                                gap2Y = minGap * endDirection.y;
+                            }
+                            Point mid1 = Point(start.x + gap1X,start.y + gap1Y);
+                            Point mid2 = Point(end.x + gap2X,end.y + gap2Y);
+                            int numPoints = 10;
+                            for (int i = 0; i <= numPoints; i++) {
+                                Point p1 = getPoint(start, mid1, i / double(numPoints));
+                                Point p2 = getPoint(mid1, mid2, i / double(numPoints));
+                                Point p3 = getPoint(mid2, end, i / double(numPoints));
+                                Point p4 = getPoint(p1, p2, i / double(numPoints));
+                                Point p5 = getPoint(p2, p3, i / double(numPoints));
+                                Point p6 = getPoint(p4, p5, i / double(numPoints));
+                                laneLink.points.emplace_back(p6.x, p6.y);
+                            }
+                        }
+                        laneLink.roadLink = &roadLink;
+
+                        laneLink.startLane = startLane;
+                        laneLink.endLane = endLane;
+                        laneLink.length = getLengthOfPoints(laneLink.points);
+                        startLane->laneLinks.push_back(&laneLink);
+                        drivableMap.emplace(laneLink.getId(), &laneLink);
+                        path.pop_back();
+                    }
+                    roadLink.node = &nodes[i];
+                    path.pop_back();
+                }
+
+                path.pop_back(); // End of node
+            }
+            path.pop_back();
+            assert(path.empty());
+        }catch (const JsonFormatError &e) {
+            std::cerr << "Error occurred when reading the roadnet file: " << std::endl;
+            for (const auto &node : path) {
+                std::cerr << "/" << node;
+            }
+            std::cerr << " " << e.what() << std::endl;
+            return false;
+        }
+
+        for (auto &node : nodes)
+            node.initCrosses();
+        VehicleInfo vehicleTemplate;
+
+        for (auto &road : roads)
+            road.initLanesPoints();
+
+        for (auto &road : roads) {
+            road.buildSegmentationByInterval((vehicleTemplate.len + vehicleTemplate.minGap) * MAX_NUM_CARS_ON_SEGMENT);
+        }
+
+        for (auto &road : roads) {
+            auto &roadLanes = road.getLanePointers();
+            lanes.insert(lanes.end(), roadLanes.begin(), roadLanes.end());
+            drivables.insert(drivables.end(), roadLanes.begin(), roadLanes.end());
+        }
+        for (auto &node : nodes) {
+            auto &intersectionLaneLinks = node.getLaneLinks();
+            laneLinks.insert(laneLinks.end(), intersectionLaneLinks.begin(), intersectionLaneLinks.end());
+            drivables.insert(drivables.end(), intersectionLaneLinks.begin(), intersectionLaneLinks.end());
+        }
+        return true;
+    }
+
+    rapidjson::Value RoadGraph::convertToJson(rapidjson::Document::AllocatorType &allocator) {
+        rapidjson::Value jsonRoot(rapidjson::kObjectType);
+        // write nodes
+        rapidjson::Value jsonNodes(rapidjson::kArrayType);
+        for (size_t i = 0; i < nodes.size(); ++i) {
+            rapidjson::Value jsonNode(rapidjson::kObjectType), jsonPoint(rapidjson::kArrayType);
+            rapidjson::Value idValue;
+            idValue.SetString(rapidjson::StringRef(nodes[i].id.c_str()));
+            jsonNode.AddMember("id", idValue, allocator);
+            jsonPoint.PushBack(nodes[i].point.x, allocator);
+            jsonPoint.PushBack(nodes[i].point.y, allocator);
+            jsonNode.AddMember("point", jsonPoint, allocator);
+            jsonNode.AddMember("width", nodes[i].width, allocator);
+
+            rapidjson::Value jsonOutline(rapidjson::kArrayType);
+            for (auto &point: nodes[i].getOutline()) {
+                jsonOutline.PushBack(point.x, allocator);
+                jsonOutline.PushBack(point.y, allocator);
+            }
+            jsonNode.AddMember("outline", jsonOutline, allocator);
+            jsonNodes.PushBack(jsonNode, allocator);
+        }
+        jsonRoot.AddMember("nodes", jsonNodes, allocator);
+
+        //write edges
+        rapidjson::Value jsonEdges(rapidjson::kArrayType);
+        for (size_t i = 0; i < roads.size(); ++i) {
+            rapidjson::Value jsonEdge(rapidjson::kObjectType);
+            rapidjson::Value jsonPoints(rapidjson::kArrayType);
+            rapidjson::Value jsonLaneWidths(rapidjson::kArrayType);
+            rapidjson::Value jsonDirs(rapidjson::kArrayType);
+
+            rapidjson::Value idValue;
+            idValue.SetString(rapidjson::StringRef(roads[i].id.c_str()));
+            jsonEdge.AddMember("id", idValue, allocator);
+            rapidjson::Value startValue;
+            if (roads[i].startNode)
+                startValue.SetString(rapidjson::StringRef(roads[i].startNode->id.c_str()));
+            else
+                startValue.SetString("null");
+            jsonEdge.AddMember("from", startValue, allocator);
+
+            rapidjson::Value endValue;
+            if (roads[i].endNode)
+                endValue.SetString(rapidjson::StringRef(roads[i].endNode->id.c_str()));
+            else
+                endValue.SetString("null");
+            jsonEdge.AddMember("to", endValue, allocator);
+            for (size_t j = 0; j < roads[i].points.size(); ++j) {
+                rapidjson::Value jsonPoint(rapidjson::kArrayType);
+                jsonPoint.PushBack(roads[i].points[j].x, allocator);
+                jsonPoint.PushBack(roads[i].points[j].y, allocator);
+                jsonPoints.PushBack(jsonPoint, allocator);
+            }
+            jsonEdge.AddMember("points", jsonPoints, allocator);
+            jsonEdge.AddMember("nLane", static_cast<int>(roads[i].lanes.size()), allocator);
+            for (size_t j = 0; j < roads[i].lanes.size(); ++j) {
+                jsonLaneWidths.PushBack(roads[i].lanes[j].width, allocator);
+            }
+            jsonEdge.AddMember("laneWidths", jsonLaneWidths, allocator);
+            jsonEdges.PushBack(jsonEdge, allocator);
+        }
+        jsonRoot.AddMember("edges", jsonEdges, allocator);
+        return jsonRoot;
+    }
+
     Point RoadNet::getPoint(const Point &p1, const Point &p2, double a) {
         return Point((p2.x - p1.x) * a + p1.x, (p2.y - p1.y) * a + p1.y);
     }
@@ -820,6 +1139,153 @@ FOUND:;
 
     bool Intersection::isImplicitIntersection() {
         return trafficLight.getPhases().size() <= 1;
+    }
+
+    void Node::initCrosses() {
+        std::vector<LaneLink *> allLaneLinks;
+        for (auto &roadLink : roadLinks) {
+            for (auto &laneLink : roadLink.getLaneLinks())
+                allLaneLinks.push_back(&laneLink);
+        }
+        int n = (int) allLaneLinks.size();
+
+        for (int i = 0; i < n; i++) {
+            for (int j = i + 1; j < n; j++) {
+                LaneLink *la = allLaneLinks[i];
+                LaneLink *lb = allLaneLinks[j];
+                std::vector<Point> &va = la->points;
+                std::vector<Point> &vb = lb->points;
+                double disa = 0.0;
+                for (int ia = 0; ia + 1 < (int) va.size(); ia++) {
+                    double disb = 0.0;
+                    for (int ib = 0; ib + 1 < (int) vb.size(); ib++) {
+                        Point A1 = va[ia], A2 = va[ia + 1];
+                        Point B1 = vb[ib], B2 = vb[ib + 1];
+                        if (Point::sign(crossMultiply(A2 - A1, B2 - B1)) == 0) continue;
+                        Point P = calcIntersectPoint(A1, A2, B1, B2);
+                        if (onSegment(A1, A2, P) && onSegment(B1, B2, P)) {
+                            Cross cross;
+                            cross.laneLinks[0] = la;
+                            cross.laneLinks[1] = lb;
+                            cross.notifyVehicles[0] = nullptr;
+                            cross.notifyVehicles[1] = nullptr;
+                            cross.distanceOnLane[0] = disa + (P - A1).len();
+                            cross.distanceOnLane[1] = disb + (P - B1).len();
+                            cross.ang = calcAng(A2 - A1, B2 - B1);
+                            //assert(cross.ang > 0 && cross.ang < M_PI / 2); // assert cannot pass why?
+                            double w1 = la->getWidth();
+                            double w2 = lb->getWidth();
+                            double c1 = w1 / sin(cross.ang);
+                            double c2 = w2 / sin(cross.ang);
+                            double diag = (c1 * c1 + c2 * c2 + 2 * c1 * c2 * cos(cross.ang)) / 4;
+                            cross.safeDistances[0] = sqrt(diag - w2 * w2 / 4);
+                            cross.safeDistances[1] = sqrt(diag - w1 * w1 / 4);
+                            this->crosses.push_back(cross);
+                            goto FOUND;
+                        }
+                        disb += (vb[ib + 1] - vb[ib]).len();
+                    }
+                    disa += (va[ia + 1] - va[ia]).len();
+                }
+FOUND:;
+            }
+        }
+        for (Cross &cross : this->crosses) {
+            cross.laneLinks[0]->getCrosses().push_back(&cross);
+            cross.laneLinks[1]->getCrosses().push_back(&cross);
+        }
+        for (auto laneLink : allLaneLinks) {
+            std::vector<Cross *> &crosses = laneLink->getCrosses();
+            sort(crosses.begin(), crosses.end(), [laneLink](Cross *ca, Cross *cb) -> bool {
+                double da = ca->distanceOnLane[ca->laneLinks[0] != laneLink];
+                double db = cb->distanceOnLane[cb->laneLinks[0] != laneLink];
+                return da < db;
+            });
+        }
+    }
+
+    const std::vector<LaneLink *> &Node::getLaneLinks() {
+        if (laneLinks.size() > 0) return laneLinks;
+        for (auto &roadLink : roadLinks) {
+            auto &roadLaneLinks = roadLink.getLaneLinkPointers();
+            laneLinks.insert(laneLinks.end(), roadLaneLinks.begin(), roadLaneLinks.end());
+        }
+        return laneLinks;
+    }
+
+    std::vector<Point> Node::getOutline() {
+        // Calculate the convex hull as the outline of the intersection
+        std::vector<Point> points;
+        points.push_back(getPosition());
+        for (auto road : getRoads()){
+            Vector roadDirect = road->getEndNode().getPosition() - road->getStartNode().getPosition();
+            roadDirect = roadDirect.unit();
+            Vector pDirect = roadDirect.normal();
+            if (&road->getStartNode() == this) {
+                roadDirect = -roadDirect;
+            }
+            /*                          <deltaWidth>
+             *                   [pointB *]------[pointB1 *]--------
+             *                       |
+             *                       v
+             *                   [pDirect] <- roadDirect <- Road
+             *                       |
+             *                       v
+             * [intersection]----[pointA *]------[pointA1 *]--------
+             */
+            double roadWidth = road->getWidth();
+            double deltaWidth = 0.5 * min2double(width, roadWidth);
+            deltaWidth = max2double(deltaWidth, 5);
+
+            Point pointA = getPosition() -  roadDirect * width;
+            Point pointB  = pointA - pDirect * roadWidth;
+            points.push_back(pointA);
+            points.push_back(pointB);
+
+            if (deltaWidth < road->averageLength()) {
+                Point pointA1 = pointA - roadDirect * deltaWidth;
+                Point pointB1 = pointB - roadDirect * deltaWidth;
+                points.push_back(pointA1);
+                points.push_back(pointB1);
+            }
+        }
+
+        auto minIter = std::min_element(points.begin(), points.end(),
+                [](const Point &a, const Point &b){ return a.y < b.y; });
+
+        Point p0 = *minIter;
+        std::vector<Point> stack;
+        stack.push_back(p0);
+        points.erase(minIter);
+
+        std::sort(points.begin(), points.end(),
+                [&p0](const Point &a, const Point &b)
+                {return (a - p0).ang() < (b - p0).ang(); });
+
+        for (size_t i = 0 ; i < points.size(); ++i) {
+            Point &point = points[i];
+            Point p2 = stack[stack.size() - 1];
+            if (stack.size() < 2) {
+                if (point.x != p2.x || point.y != p2.y)
+                    stack.emplace_back(point);
+                continue;
+            }
+            Point p1 = stack[stack.size() - 2];
+
+            while (stack.size() > 1 && crossMultiply(point - p2, p2 - p1) >= 0) {
+                p2 = p1;
+                stack.pop_back();
+                if (stack.size() > 1) p1 = stack[stack.size() - 2];
+            }
+            stack.emplace_back(point);
+        }
+
+        return stack;
+    }
+
+    void Node::reset() {
+        for (auto &roadLink : roadLinks) roadLink.reset();
+        for (auto &cross : crosses) cross.reset();
     }
 
     void RoadLink::reset() {

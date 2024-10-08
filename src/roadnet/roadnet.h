@@ -13,6 +13,8 @@
 namespace CityFlow {
     class RoadNet;
 
+    class RoadGraph;
+
     class Intersection;
 
     class Road;
@@ -27,48 +29,9 @@ namespace CityFlow {
 
     class Node;
 
-    class Node {
-        friend class RoadGraph;
+    
 
-        friend class RoadLink;
-
-        friend class Road;
-
-    private:
-        std::string id;
-        double width = 0.0;
-        Point point;
-        std::vector<Road *> roads;
-        std::vector<RoadLink> roadLinks;
-        std::vector<Cross> crosses;
-        std::vector<LaneLink *> laneLinks;
-
-        void initCrosses();
-
-    public:
-        std::string getId() const { return this->id; }
-
-        const std::vector<Road *> &getRoads() const { return this->roads; }
-
-        std::vector<Road *> &getRoads() { return this->roads; }
-
-        const std::vector<RoadLink> &getRoadLinks() const { return this->roadLinks; }
-
-        std::vector<RoadLink> &getRoadLinks() { return this->roadLinks; }
-
-        std::vector<Cross> &getCrosses() { return crosses; }
-
-        const std::vector<LaneLink *> &getLaneLinks();
-
-        void reset();
-
-        std::vector<Point> getOutline();
-
-        bool isImplicitNode();
-
-        const Point &getPosition() const { return point; }
-    };
-
+   
 
     class Segment {
         friend Lane;
@@ -560,6 +523,98 @@ namespace CityFlow {
         }
     };
 
+    class Node {
+            friend class RoadGraph;
+
+            friend class RoadLink;
+
+            friend class Road;
+
+        private:
+            std::string id;
+            double width = 0.0;
+            Point point;
+            std::vector<Road *> roads;
+            std::vector<RoadLink> roadLinks;
+            std::vector<Cross> crosses;
+            std::vector<LaneLink *> laneLinks;
+
+            void initCrosses();
+
+        public:
+            std::string getId() const { return this->id; }
+
+            const std::vector<Road *> &getRoads() const { return this->roads; }
+
+            std::vector<Road *> &getRoads() { return this->roads; }
+
+            const std::vector<RoadLink> &getRoadLinks() const { return this->roadLinks; }
+
+            std::vector<RoadLink> &getRoadLinks() { return this->roadLinks; }
+
+            std::vector<Cross> &getCrosses() { return crosses; }
+
+            const std::vector<LaneLink *> &getLaneLinks();
+
+            void reset();
+
+            std::vector<Point> getOutline();
+
+            const Point &getPosition() const { return point; }
+        };
+
+    class RoadGraph {
+        private:
+            std::vector<Road> roads;
+            std::vector<Node> nodes;
+            std::map<std::string, Road *> roadMap;
+            std::map<std::string, Node *> nodeMap;
+            std::map<std::string, Drivable *> drivableMap;
+
+            std::vector<Lane *> lanes;
+            std::vector<LaneLink *> laneLinks;
+            std::vector<Drivable *> drivables;
+            Point getPoint(const Point &p1, const Point &p2, double a);
+
+        public:
+            bool loadFromJson(std::string jsonFileName);
+
+            rapidjson::Value convertToJson(rapidjson::Document::AllocatorType &allocator);
+
+            const std::vector<Road> &getRoads() const { return this->roads; }
+
+            std::vector<Road> &getRoads() { return this->roads; }
+
+            const std::vector<Node> &getNodes() const { return this->nodes; }
+
+            std::vector<Node> &getNodes() { return this->nodes; }
+
+            Road *getRoadById(const std::string &id) const {
+                return roadMap.count(id) > 0 ? roadMap.at(id) : nullptr;
+            }
+
+            Node *getNodeById(const std::string &id) const {
+                return nodeMap.count(id) > 0 ? nodeMap.at(id) : nullptr;
+            }
+
+            Drivable *getDrivableById(const std::string &id) const {
+                return drivableMap.count(id) > 0 ? drivableMap.at(id) : nullptr;
+            }
+
+            const std::vector<Lane *> &getLanes() const {
+                return lanes;
+            }
+
+            const std::vector<LaneLink *> &getLaneLinks() const {
+                return laneLinks;
+            }
+
+            const std::vector<Drivable *> &getDrivables() const {
+                return drivables;
+            }
+
+            void reset();
+        };
 
     class RoadNet {
     private:

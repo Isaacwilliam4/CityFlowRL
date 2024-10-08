@@ -123,17 +123,17 @@ namespace CityFlow {
     }
 
     bool Engine::loadRoadGraph(const std::string &jsonFile) {
-        bool ans = roadnet.loadFromJson(jsonFile);
+        bool ans = roadgraph.loadFromJson(jsonFile);
         int cnt = 0;
-        for (Road &road : roadnet.getRoads()) {
+        for (Road &road : roadgraph.getRoads()) {
             threadRoadPool[cnt].push_back(&road);
             cnt = (cnt + 1) % threadNum;
         }
-        for (Intersection &intersection : roadnet.getIntersections()) {
-            threadIntersectionPool[cnt].push_back(&intersection);
-            cnt = (cnt + 1) % threadNum;
-        }
-        for (Drivable *drivable : roadnet.getDrivables()) {
+        // for (Node &node : roadgraph.getIntersections()) {
+        //     threadIntersectionPool[cnt].push_back(&intersection);
+        //     cnt = (cnt + 1) % threadNum;
+        // }
+        for (Drivable *drivable : roadgraph.getDrivables()) {
             threadDrivablePool[cnt].push_back(drivable);
             cnt = (cnt + 1) % threadNum;
         }
